@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cliente AES con CryptoJS y Spring Boot</title>
+
+  <!-- Bootstrap -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+
+  <!-- Librería CryptoJS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+
+  <style>
+    body {
+      background: #f3f6fa;
+    }
+    .card {
+      max-width: 600px;
+      margin: 50px auto;
+      border-radius: 15px;
+    }
+    pre {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="card shadow p-4">
+      <h3 class="text-center text-primary mb-4">🔐 Cifrado AES con CryptoJS (Cliente + Servidor)</h3>
+
+      <div class="mb-3">
+        <label class="form-label">Texto en claro:</label>
+        <input id="texto" type="text" class="form-control" placeholder="Escribe un mensaje...">
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Clave AES:</label>
+        <input id="clave" type="text" class="form-control" value="faustinianodecorazon">
+      </div>
+
+      <button id="btnEnviar" class="btn btn-success w-100">Enviar texto cifrado al servidor</button>
+
+      <hr>
+
+      <div class="mt-3">
+        <h6>Texto cifrado (AES/Base64):</h6>
+        <pre id="salidaCifrado" class="bg-dark text-white p-2 rounded"></pre>
+
+        <h6 class="mt-3">Texto descifrado (respuesta del servidor):</h6>
+        <pre id="salidaDescifrado" class="bg-light text-dark p-2 rounded border"></pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById("btnEnviar").addEventListener("click", async () => {
+      const texto = document.getElementById("texto").value;
+      const clave = document.getElementById("clave").value;
+
+      if (!texto || !clave) {
+        alert("Por favor ingresa el texto y la clave.");
+        return;
+      }
+
+      // Asegurar clave de 16 bytes (AES-128)
+      const keyBytes = CryptoJS.enc.Utf8.parse(clave.substring(0, 16));
+
+      // Cifrado AES en modo ECB con PKCS7Padding (compatible con PKCS5Padding)
+      const encrypted = CryptoJS.AES.encrypt(texto, keyBytes, {
+        mode: CryptoJS.mode.ECB,
+        padding: CryptoJS.pad.Pkcs7
+      });
+
+      const base64Cifrado = encrypted.toString();
+      document.getElementById("salidaCifrado").textContent = base64Cifrado;
+
+      try {
+        // Enviar al backend el texto cifrado
+        const response = await fetch("http://localhost:8083/cripto/descifrar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            encryptText: base64Cifrado,
+            key: clave
+          })
+        });
+
+        if (!response.ok) throw new Error("Error al comunicarse con el servidor");
+
+        const descifrado = await response.text();
+        document.getElementById("salidaDescifrado").textContent = descifrado;
+
+      } catch (error) {
+        console.error(error);
+        alert("Hubo un error al enviar el texto cifrado: " + error.message);
+      }
+    });
+  </script>
+</body>
+</html>
